@@ -1,0 +1,14 @@
+[Unit]
+Description=remind.me.in worker (inbox -> schedule -> send)
+After=network-online.target
+
+[Service]
+User=pimutlu
+WorkingDirectory=/home/pimutlu/apps/remind-me
+EnvironmentFile=/home/pimutlu/apps/remind-me/.env
+ExecStart=/home/pimutlu/apps/remind-me/.venv/bin/python manage.py run_bot
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

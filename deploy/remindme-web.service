@@ -1,0 +1,15 @@
+[Unit]
+Description=remind.me.in webhook (gunicorn)
+After=network-online.target
+
+[Service]
+User=pimutlu
+WorkingDirectory=/home/pimutlu/apps/remind-me
+EnvironmentFile=/home/pimutlu/apps/remind-me/.env
+ExecStart=/home/pimutlu/apps/remind-me/.venv/bin/gunicorn config.wsgi \
+          --bind 127.0.0.1:8001 --workers 2 --timeout 30
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target
