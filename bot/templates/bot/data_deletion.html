@@ -1,0 +1,46 @@
+{% extends "bot/legal_base.html" %}
+{% block title %}Veri Silme{% endblock %}
+{% block content %}
+<h1>Veri Silme Talebi</h1>
+<p class="sub">@remindme.in Instagram hatırlatma botu · Son güncelleme: {{ updated }}</p>
+
+<p>Botun sizinle ilgili tuttuğu tek veri, botu etiketlediğiniz yorumlardan
+doğan hatırlatma kayıtlarıdır. Silmek için iki yol var:</p>
+
+<h2>1. Yorumu silin</h2>
+<p>Botu etiketlediğiniz yorumu Instagram'dan silerseniz hatırlatma
+gönderilemez ve kayıt bir sonraki temizlikte silinir. Beklemek istemiyorsanız
+ikinci yolu kullanın.</p>
+
+<h2>2. Silme talebi gönderin</h2>
+<p>@remindme.in hesabına <strong>Instagram'dan doğrudan mesaj</strong> gönderin
+ve "verilerimi sil" yazın; talebinizi gönderen hesapla eşleştirip
+<strong>30 gün içinde</strong> tüm kayıtlarınızı sileriz ve işlem bitince
+yanıtlarız.</p>
+<p>E-posta ile: <a href="mailto:{{ contact_email }}">{{ contact_email }}</a> —
+Instagram kullanıcı adınızı yazmanız yeterli.</p>
+
+<h2>Ne silinir</h2>
+<p>Hatırlatma kaydı, yorumun metni ve kimliği, kullanıcı adı, gönderi bağlantısı
+ve üretilmiş yanıt metinleri. Silme geri alınamaz; bekleyen hatırlatmalar da
+iptal olur.</p>
+
+<div class="en">
+<h1>Data Deletion</h1>
+<p class="sub">@remindme.in Instagram reminder bot · Last updated: {{ updated }}</p>
+<p>The only data the bot holds about you comes from comments in which you
+@mentioned it.</p>
+<h2>1. Delete the comment</h2>
+<p>Delete your comment on Instagram: the reminder can no longer be delivered and
+the record is removed at the next cleanup.</p>
+<h2>2. Request deletion</h2>
+<p>Send a direct message to @remindme.in on Instagram saying "delete my data",
+or email <a href="mailto:{{ contact_email }}">{{ contact_email }}</a> with your
+Instagram username. We match the request to your account and delete every record
+within <strong>30 days</strong>, then confirm.</p>
+<h2>What is deleted</h2>
+<p>The reminder record, the comment text and id, the username, the post
+permalink and any generated reply text. Deletion is irreversible and cancels
+pending reminders.</p>
+</div>
+{% endblock %}

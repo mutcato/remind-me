@@ -1,0 +1,65 @@
+{% extends "bot/legal_base.html" %}
+{% block title %}Gizlilik Politikası{% endblock %}
+{% block content %}
+<h1>Gizlilik Politikası</h1>
+<p class="sub">@remindme.in Instagram hatırlatma botu · Son güncelleme: {{ updated }}</p>
+
+<p>@remindme.in, Instagram yorumlarında etiketlendiğinde çalışan bir hatırlatma
+botudur. Yalnızca hatırlatmayı kurup zamanı gelince aynı yorumun altına yanıt
+yazabilmek için gereken veriyi işler.</p>
+
+<h2>İşlenen veriler</h2>
+<table>
+  <tr><th>Veri</th><th>Neden</th></tr>
+  <tr><td>Yorum kimliği (<code>comment_id</code>) ve medya kimliği (<code>media_id</code>)</td><td>Yanıtın hangi yorumun altına yazılacağını bilmek</td></tr>
+  <tr><td>Yorum metni</td><td>İstenen süreyi ("3 gün", "yarın 09:00") ve varsa notu anlamak</td></tr>
+  <tr><td>Kullanıcı adı — yalnızca Instagram bildirimde gönderdiyse</td><td>Yanıtta hitap etmek ve kişi başı hatırlatma sınırını uygulamak</td></tr>
+  <tr><td>Gönderi bağlantısı (permalink)</td><td>Hatırlatmayı doğru gönderiyle ilişkilendirmek</td></tr>
+  <tr><td>Zaman damgaları ve hatırlatma durumu</td><td>Hatırlatmayı zamanında ve bir kez göndermek</td></tr>
+</table>
+
+<h2>İşlemediklerimiz</h2>
+<p>Doğrudan mesajlarınız, takipçi listeniz, profil bilgileriniz, e-posta
+adresiniz veya konum veriniz işlenmez. Veriler reklam için kullanılmaz,
+satılmaz ve üçüncü taraflarla paylaşılmaz. Yanıt metinleri sabit şablonlardan
+üretilir; yorumlarınız bir yapay zekâ modeline gönderilmez.</p>
+
+<h2>Saklama süresi</h2>
+<p>Hatırlatma gönderildikten (veya kalıcı olarak başarısız olduktan) <strong>90
+gün</strong> sonra kayıt silinir. Bekleyen hatırlatmalar, zamanı gelene kadar
+saklanır — en fazla bir yıl.</p>
+
+<h2>Haklarınız</h2>
+<p>Verilerinizin silinmesini istemek için <a href="/data-deletion/">veri silme
+sayfasına</a> bakın. KVKK kapsamında erişim, düzeltme ve silme haklarınız
+saklıdır.</p>
+
+<h2>Veri nerede tutulur</h2>
+<p>Veriler Türkiye'de barındırılan tek bir sunucuda, yalnızca bu bot tarafından
+erişilen bir veritabanında tutulur. Instagram ile iletişim Meta'nın resmî
+Instagram Platform API'si üzerinden, HTTPS ile yapılır.</p>
+
+<div class="en">
+<h1>Privacy Policy</h1>
+<p class="sub">@remindme.in Instagram reminder bot · Last updated: {{ updated }}</p>
+<p>@remindme.in is a reminder bot triggered when it is @mentioned in an Instagram
+comment. It processes only what is needed to schedule a reminder and reply under
+that same comment when the time comes.</p>
+<h2>What we process</h2>
+<p>The comment id and media id (to know where to reply), the comment text (to
+parse the requested delay and optional note), the commenter's username when
+Instagram includes it in the webhook, the post permalink, and timestamps plus
+reminder status.</p>
+<h2>What we do not process</h2>
+<p>No direct messages, follower lists, profile details, email addresses or
+location data. Nothing is used for advertising, sold, or shared with third
+parties. Replies come from fixed templates; comments are not sent to any AI
+model.</p>
+<h2>Retention</h2>
+<p>Records are deleted 90 days after the reminder is sent or permanently fails.
+Pending reminders are kept until due — at most one year.</p>
+<h2>Your rights</h2>
+<p>See the <a href="/data-deletion/">data deletion page</a>. Under Turkish data
+protection law (KVKK) you may request access, correction and deletion.</p>
+</div>
+{% endblock %}

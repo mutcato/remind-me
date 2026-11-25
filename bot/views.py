@@ -10,6 +10,8 @@ import logging
 
 from django.conf import settings
 from django.http import HttpResponse
+from django.utils import timezone
+from django.views.generic import TemplateView
 from rest_framework import status
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
@@ -90,3 +92,23 @@ class HealthView(APIView):
                 "dry_run": settings.REMINDME["DRY_RUN"],
             }
         )
+
+
+class LegalPageView(TemplateView):
+    """Privacy policy and data deletion. Meta asks for both URLs before an app
+    can go Live, and KVKK asks for the same two things."""
+
+    def get_context_data(self, **kwargs):
+        return super().get_context_data(
+            updated=timezone.localdate().strftime("%d.%m.%Y"),
+            contact_email=settings.REMINDME["CONTACT_EMAIL"],
+            **kwargs,
+        )
+
+
+class PrivacyView(LegalPageView):
+    template_name = "bot/privacy.html"
+
+
+class DataDeletionView(LegalPageView):
+    template_name = "bot/data_deletion.html"

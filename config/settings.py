@@ -213,6 +213,10 @@ REMINDME = {
     "RETRY_BASE_SECONDS": env_int("RETRY_BASE_SECONDS", 60),
     "RETRY_MAX_SECONDS": env_int("RETRY_MAX_SECONDS", 3600),
     "POLL_INTERVAL_SECONDS": env_float("POLL_INTERVAL_SECONDS", 15.0),
+    # Shown on the data deletion page; also the KVKK contact address.
+    "CONTACT_EMAIL": env("CONTACT_EMAIL", "mtokat1@gmail.com"),
+    # The privacy policy promises deletion this long after a reminder closes.
+    "RETENTION_DAYS": env_int("RETENTION_DAYS", 90),
     # Hosts with AAAA records but no IPv6 route (home connections, some Pis)
     # fail every other call with "Network is unreachable".
     "FORCE_IPV4": env_bool("FORCE_IPV4", False),
