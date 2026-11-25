@@ -99,7 +99,32 @@ değiştiyse gerekir.
 sudo systemctl restart remindme-web remindme-worker
 ```
 
-## 7. Doğrula
+## 7. IPv6 tuzağı
+
+`graph.facebook.com`'un hem A hem AAAA kaydı var. IPv6 rotası olmayan bir
+bağlantıda giden çağrılar aralıklı olarak `[Errno 101] Network is unreachable`
+verir — gelen webhook çalışırken giden API çağrıları düşer, kafa karıştırıcıdır.
+
+Önce teşhis:
+
+```bash
+curl -4 -s -o /dev/null -w "IPv4: %{http_code}\n" https://graph.facebook.com/v27.0/
+curl -6 -s -o /dev/null -w "IPv6: %{http_code}\n" https://graph.facebook.com/v27.0/
+ip -6 route | head -3        # boşsa IPv6 rotası yok demektir
+```
+
+İki çözümden biri:
+
+```bash
+# a) sistem geneli: IPv4'ü tercih et (root gerekir, tüm uygulamaları etkiler)
+echo 'precedence ::ffff:0:0/96  100' | sudo tee -a /etc/gai.conf
+getent ahosts graph.facebook.com | head -2      # artık IPv4 başta olmalı
+
+# b) yalnızca bu uygulama: .env içinde
+FORCE_IPV4=true
+```
+
+## 8. Doğrula
 
 ```bash
 curl -s https://remindme.nudgewire.com/healthz          # kuyruk derinliği

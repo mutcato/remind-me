@@ -213,6 +213,9 @@ REMINDME = {
     "RETRY_BASE_SECONDS": env_int("RETRY_BASE_SECONDS", 60),
     "RETRY_MAX_SECONDS": env_int("RETRY_MAX_SECONDS", 3600),
     "POLL_INTERVAL_SECONDS": env_float("POLL_INTERVAL_SECONDS", 15.0),
+    # Hosts with AAAA records but no IPv6 route (home connections, some Pis)
+    # fail every other call with "Network is unreachable".
+    "FORCE_IPV4": env_bool("FORCE_IPV4", False),
     # Parse and store, but never POST to Instagram. Use before App Review.
     "DRY_RUN": env_bool("DRY_RUN", False),
 }
