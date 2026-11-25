@@ -9,8 +9,13 @@ V6 = (socket.AF_INET6, socket.SOCK_STREAM, 6, "", ("2a03:2880::1", 443, 0, 0))
 
 
 class ForceIpv4Tests(SimpleTestCase):
+    def setUp(self):
+        self._real_getaddrinfo = socket.getaddrinfo
+        net.restore()
+
     def tearDown(self):
         net.restore()
+        socket.getaddrinfo = self._real_getaddrinfo  # the fake resolver must not outlive the test
 
     def patch_resolver(self, results, v4_results=None):
         calls = []

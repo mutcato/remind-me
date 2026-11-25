@@ -12,7 +12,13 @@ import logging
 import requests
 from django.conf import settings
 
+from .net import force_ipv4
+
 log = logging.getLogger(__name__)
+
+# A host with AAAA records and no IPv6 route fails like this. The fix is known,
+# so the client applies it itself rather than waiting for a config change.
+UNROUTABLE = ("network is unreachable", "errno 101", "address family not supported")
 
 RETRYABLE_STATUS = {408, 429, 500, 502, 503, 504}
 # 1,2 = transient/unknown  4,17,32,613 = rate limits  341 = application limit
@@ -71,15 +77,31 @@ class InstagramClient:
         payload = dict(data or {})
         query = dict(params or {})
         (payload if method == "POST" else query)["access_token"] = self.access_token
-        try:
-            response = self.session.request(
+        def send():
+            return self.session.request(
                 method, url, params=query or None, data=payload if method == "POST" else None, timeout=self.timeout
             )
+
+        try:
+            response = send()
         except requests.RequestException as exc:  # DNS, TLS, timeout — always worth a retry
-            # The exception text embeds the request URL, token and all.
-            raise InstagramError(
-                f"request failed: {redact(exc, self.access_token)}", retryable=True
-            ) from None
+            # No IPv6 route: resolve IPv4-only from here on and try once more.
+            # force_ipv4() returns False if it is already in effect, so a real
+            # outage still fails instead of looping.
+            if any(hint in str(exc).lower() for hint in UNROUTABLE) and force_ipv4():
+                log.warning("IPv6 unroutable from this host; resolving IPv4-only from now on")
+                try:
+                    response = send()
+                except requests.RequestException as retry_exc:
+                    raise InstagramError(
+                        f"request failed after IPv4 fallback: {redact(retry_exc, self.access_token)}",
+                        retryable=True,
+                    ) from None
+            else:
+                # The exception text embeds the request URL, token and all.
+                raise InstagramError(
+                    f"request failed: {redact(exc, self.access_token)}", retryable=True
+                ) from None
 
         try:
             body = response.json()
