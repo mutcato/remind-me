@@ -123,3 +123,19 @@ class DeliveryTests(TestCase):
         body = self.client.get(reverse("healthz")).json()
         self.assertEqual(body["inbox_pending"], 1)
         self.assertEqual(body["reminders_pending"], 0)
+
+
+@override_settings(REMINDME=SETTINGS)
+class DeliveryLoggingTests(DeliveryTests):
+    """Every delivery leaves a trace, so a silent log means Meta never called."""
+
+    def test_accepted_delivery_is_logged(self):
+        with self.assertLogs("bot.views", level="INFO") as logs:
+            self.post(MENTION_PAYLOAD)
+        self.assertIn("fields=mentions accepted=1", "\n".join(logs.output))
+
+    def test_unhandled_field_is_logged_as_a_warning(self):
+        payload = {"object": "instagram", "entry": [{"changes": [{"field": "story_insights", "value": {}}]}]}
+        with self.assertLogs("bot.views", level="WARNING") as logs:
+            self.post(payload)
+        self.assertIn("story_insights", "\n".join(logs.output))

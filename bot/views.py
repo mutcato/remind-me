@@ -54,14 +54,20 @@ class InstagramWebhookView(APIView):
         if payload.get("object") != "instagram":
             return Response({"status": "ignored"})
 
-        accepted = 0
+        accepted, seen = 0, []
         for entry in payload.get("entry") or []:
             for change in entry.get("changes") or []:
                 field = change.get("field")
+                seen.append(field)
                 if field not in HANDLED_FIELDS:
                     continue
                 if enqueue(field, change.get("value") or {}) is not None:
                     accepted += 1
+        # Logged on every delivery: without this, "did Meta reach us at all?"
+        # cannot be answered from the log.
+        log.info("webhook delivery: fields=%s accepted=%s", ",".join(filter(None, seen)) or "-", accepted)
+        if seen and not accepted:
+            log.warning("webhook delivery carried nothing we handle (%s)", ",".join(filter(None, seen)))
         return Response({"status": "ok", "accepted": accepted})
 
 
