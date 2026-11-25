@@ -6,6 +6,7 @@ import time
 
 from django.conf import settings
 from django.core.management.base import BaseCommand
+from django.db import close_old_connections
 
 from bot.instagram import InstagramClient
 from bot.pipeline import run_once
@@ -35,6 +36,7 @@ class Command(BaseCommand):
             self.stdout.write(self.style.WARNING("DRY_RUN is on: nothing will be posted to Instagram."))
 
         while True:
+            close_old_connections()  # uzun ömürlü döngü, Postgres yeniden başlayabilir
             counters = run_once(client)
             if any(counters.values()):
                 log.info("pass: %s", counters)

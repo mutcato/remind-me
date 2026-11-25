@@ -2,3 +2,4 @@ Django==5.2.8
 djangorestframework==3.16.1
 requests==2.32.3
 dateparser==1.2.2
+psycopg[binary]==3.2.3

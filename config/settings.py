@@ -98,6 +98,31 @@ TEMPLATES = [
     },
 ]
 
+def parse_database_url(url: str) -> dict:
+    """postgres://user:pass@host:port/name?sslmode=require -> a DATABASES entry.
+
+    Credentials are percent-decoded, so a password with "@" or "/" survives.
+    """
+    from urllib.parse import parse_qs, unquote, urlparse
+
+    parsed = urlparse(url)
+    if parsed.scheme not in {"postgres", "postgresql"}:
+        raise ValueError(f"unsupported database scheme: {parsed.scheme!r}")
+    return {
+        "ENGINE": "django.db.backends.postgresql",
+        "NAME": unquote(parsed.path.lstrip("/")),
+        "USER": unquote(parsed.username or ""),
+        "PASSWORD": unquote(parsed.password or ""),
+        "HOST": parsed.hostname or "",
+        "PORT": str(parsed.port or ""),
+        # Reused connections, checked before use: the worker runs for days and
+        # Postgres may restart underneath it.
+        "CONN_MAX_AGE": env_int("DB_CONN_MAX_AGE", 60),
+        "CONN_HEALTH_CHECKS": True,
+        "OPTIONS": {key: values[-1] for key, values in parse_qs(parsed.query).items()},
+    }
+
+
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.sqlite3",
@@ -105,18 +130,10 @@ DATABASES = {
         "OPTIONS": {"timeout": 20},
     }
 }
-if env("DATABASE_URL"):  # postgres://user:pass@host:port/name
-    from urllib.parse import urlparse
-
-    url = urlparse(env("DATABASE_URL"))
-    DATABASES["default"] = {
-        "ENGINE": "django.db.backends.postgresql",
-        "NAME": url.path.lstrip("/"),
-        "USER": url.username or "",
-        "PASSWORD": url.password or "",
-        "HOST": url.hostname or "",
-        "PORT": str(url.port or ""),
-    }
+# POSTGRES_CONNECTION_STRING wins; DATABASE_URL kept as the conventional alias.
+_database_url = env("POSTGRES_CONNECTION_STRING") or env("DATABASE_URL")
+if _database_url:
+    DATABASES["default"] = parse_database_url(_database_url)
 
 AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
