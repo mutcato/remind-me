@@ -24,6 +24,10 @@ from .models import InboxEvent, OutboxReply, Reminder, Source
 
 log = logging.getLogger(__name__)
 
+# Replies to these comment ids are built but never posted: the id is synthetic,
+# so Instagram would reject it. Used by `manage.py selftest_webhook`.
+SELFTEST_PREFIX = "selftest-"
+
 
 @dataclass
 class Comment:
@@ -336,6 +340,11 @@ def send_outbox(client: InstagramClient | None = None, now: datetime | None = No
     for index, row in enumerate(rows):
         if index:
             sleep(conf["SEND_INTERVAL_SECONDS"])  # one sender, paced, as agreed
+        if row.target_comment_id.startswith(SELFTEST_PREFIX):
+            log.info("selftest reply suppressed (%s): %s", row.kind, row.message.splitlines()[0])
+            _reply_sent(row, "selftest")
+            counters["sent"] += 1
+            continue
         try:
             reply_id = _post_reply(client, row)
         except InstagramError as exc:

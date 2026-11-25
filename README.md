@@ -177,6 +177,19 @@ mention'ı bölmüyor — bir ara şüphelendiğimiz bu risk kapandı, ad deği�
    sunucu tarafında tetikleniyor; Activity bildiriminden bağımsız olabilir.
    Abonelik açıldığında takipçi/takipçi-olmayan iki hesapla ölçülecek.
 
+## Sessizliğin kaynağını ayırmak
+
+Gerçek bir yorum geldiğinde hiçbir şey olmuyorsa, sorun bizde mi Meta'da mı?
+
+```bash
+python manage.py selftest_webhook
+```
+
+Meta'nın göndereceğinin birebir aynısı olan imzalı bir teslimatı public callback
+URL'ine atar ve kaydın InboxEvent -> Reminder -> OutboxReply yolculuğunu izler.
+Instagram'a hiçbir şey gönderilmez. Geçerse yığın sağlamdır ve sessizliğin sebebi
+Meta tarafındadır: abonelik ya da Live modu.
+
 ## Sırada ne var
 
 - **LLM fallback** (HANDOFF §4): kurallar + `dateparser` anlamazsa şu an

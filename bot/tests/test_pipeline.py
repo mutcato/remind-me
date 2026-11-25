@@ -431,3 +431,25 @@ class SecretRedactionTests(TestCase):
         with self.assertRaises(InstagramError) as caught:
             client.fetch_account()
         self.assertNotIn(token, str(caught.exception))
+
+
+@override_settings(REMINDME=SETTINGS)
+class SelftestSuppressionTests(TestCase):
+    """A self-test reply must never reach Instagram: the comment id is synthetic."""
+
+    def test_selftest_reply_is_marked_sent_without_posting(self):
+        comment_event("@remindme.in 2 saat", comment_id=f"{pipeline.SELFTEST_PREFIX}1")
+        pipeline.process_inbox(FakeClient())
+        client = FakeClient()
+        counters = pipeline.send_outbox(client, sleep=NEVER_SLEEP)
+        self.assertEqual(counters["sent"], 1)
+        self.assertEqual(client.sent, [])  # nothing left the building
+        row = OutboxReply.objects.get()
+        self.assertEqual((row.status, row.reply_comment_id), (OutboxReply.Status.SENT, "selftest"))
+
+    def test_real_comment_ids_are_untouched(self):
+        comment_event("@remindme.in 2 saat", comment_id="17918718562020960")
+        pipeline.process_inbox(FakeClient())
+        client = FakeClient()
+        pipeline.send_outbox(client, sleep=NEVER_SLEEP)
+        self.assertEqual(len(client.sent), 1)
