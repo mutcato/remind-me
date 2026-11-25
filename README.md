@@ -150,6 +150,33 @@ run_bot │ process_inbox()   mentioned_comment ile metni çek → komutu ayrı�
   yok (7 günlük pencere DM/private reply için). Yine de ilk hafta uçtan uca
   gerçek bir hesapla denenmeli.
 
+## Ampirik bulgular (sahada ölçüldü, belgede yazmıyor)
+
+**25 Kasım 2026 — mention bildirimi takip ilişkisine bağlı görünüyor.**
+
+| Senaryo | Sonuç |
+|---|---|
+| Takip etmeyen hesaptan yorumda `@remindme.in` etiketi | Bildirim **gelmedi** (birden çok deneme) |
+| Aynı hesap `@remindme.in`'i takip ettikten sonra (karşılıklı) | Bildirim **anında geldi** |
+
+Meta'nın belgelerinde bunu açıklayan bir madde yok; resmî metin koşulsuz
+(*"When you mention someone, they'll get a notification in their Activity feed"*).
+Muhtemelen belgelenmemiş bir spam filtresi.
+
+Aynı denemede doğrulanan ikinci şey: bildirimde handle **`@remindme.in` tam
+haliyle, nokta dahil** mavi link olarak göründü. Yani kullanıcı adındaki nokta
+mention'ı bölmüyor — bir ara şüphelendiğimiz bu risk kapandı, ad değişmeyecek.
+
+**Henüz bilinmeyen iki şey, ikisi de ürünün şeklini belirliyor:**
+
+1. **Tek yönlü mü, karşılıklı mı?** Testte hesap takip etti *ve* geri takip
+   edildi. Tek yönlü takip yetiyorsa akış "önce takip et, sonra etiketle" olur —
+   bu normal ve büyümeye yarar. Karşılıklı şartsa bot her kullanıcıyı geri takip
+   etmek zorunda kalır; bu hem ölçeklenmez hem spam örüntüsüdür.
+2. **Webhook aynı kurala tabi mi?** `mentions` webhook'u yorum oluşturulurken
+   sunucu tarafında tetikleniyor; Activity bildiriminden bağımsız olabilir.
+   Abonelik açıldığında takipçi/takipçi-olmayan iki hesapla ölçülecek.
+
 ## Sırada ne var
 
 - **LLM fallback** (HANDOFF §4): kurallar + `dateparser` anlamazsa şu an
