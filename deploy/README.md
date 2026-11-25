@@ -83,7 +83,23 @@ sudo systemctl status remindme-web remindme-worker
 journalctl -u remindme-worker -f          # worker'ı canlı izle
 ```
 
-## 6. Doğrula
+## 6. Güncelleme
+
+Kod değiştiğinde:
+
+```bash
+./deploy/update.sh      # pull -> pip -> migrate -> collectstatic -> restart -> health
+```
+
+Elle yapacaksan sıra önemli: `git pull` çalışan süreci etkilemez, kodu yalnızca
+yeniden başlatma yükler. `daemon-reload` sadece `deploy/*.service` dosyaları
+değiştiyse gerekir.
+
+```bash
+sudo systemctl restart remindme-web remindme-worker
+```
+
+## 7. Doğrula
 
 ```bash
 curl -s https://remindme.nudgewire.com/healthz          # kuyruk derinliği
