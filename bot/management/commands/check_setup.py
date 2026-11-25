@@ -112,7 +112,11 @@ class Command(BaseCommand):
                 failures += int(not here)
             if failures:
                 self.stdout.write(
-                    self.style.WARNING("\n  düzeltmek için: manage.py subscribe_webhook --fields comments,mentions")
+                    self.style.WARNING(
+                        "\n  düzeltmek için: manage.py subscribe_webhook --fields comments,mentions\n"
+                        "  teslimat zinciri dört adım: (1) callback doğrulandı (2) panelde alan seçili\n"
+                        "  (3) hesap aboneliği — yukarıdaki komut (4) uygulama Live modda"
+                    )
                 )
         except InstagramError as exc:
             self.stdout.write(f"  [{bad}] abonelikler okunamadı: {exc}")

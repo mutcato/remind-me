@@ -137,12 +137,26 @@ olması gerekiyor; doğrulama şirket belgesi (vergi kaydı vb.) istiyor — Tü
 
 ## Adım 7 🧑 — Başkasının postunda test (asıl senaryo)
 
-Üçüncü bir hesabın postundaki etiket `mentions` alanından gelir. Development
-mode'da gelmezse: uygulama panelinde **App roles → Roles → Add people →
-Testers** ile `nudgewire0`'ı ekle, o hesaptan daveti kabul et. Yine gelmiyorsa
-sebep App Review eksikliği — `instagram_manage_comments` için Advanced Access
-gerekir ve o başvuruyu yapmamız gerekir (gizlilik politikası sayfası + veri silme
-sayfası + ekran kaydı).
+Üçüncü bir hesabın postundaki etiket `mentions` alanından gelir. Teslimat için
+belgelenmiş dört koşulun hepsi gerekir:
+
+1. Callback URL doğrulanmış (Meta'nın GET challenge'ı 200 dönmüş)
+2. Panelde `mentions` alanı **seçili** — *API setup with Unified login → Webhooks*
+3. **Hesap aboneliği** açık — paneldeki per-account toggle ya da
+   `POST /{ig-user-id}/subscribed_apps` (`manage.py subscribe_webhook`).
+   Paneldeki alanı işaretlemek tek başına hesabı abone etmez.
+4. Uygulama **Live** — *"Your app must be published or Live to receive
+   notifications for app users"*
+
+Not: "Instagram Tester" rolü eski Instagram Login soyuna ait; **Unified Login'de
+karşılığı yok**, roller *App roles → Roles* altındaki Facebook hesabı rolleridir.
+Yorumu yazan üçüncü kişiye rol vermeye çalışmak bu kurulumda büyük olasılıkla
+çıkmaz sokak.
+
+Erişim seviyesi için ümit verici bir ayrıntı: Meta'nın Limitations bölümü
+*"Advanced Access is required for `comments` and `live_comments` notifications"*
+diyor — **`mentions` bu listede adı geçmiyor**. Belgelenmiş olan bu; `mentions`
+için Standard Access'in yetip yetmediği doğrudan yazılmamış, deneyle ölçülecek.
 
 ## Adım 8 🤖 — Gerçek gönderime geç
 

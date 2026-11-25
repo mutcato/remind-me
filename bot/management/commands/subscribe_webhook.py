@@ -44,5 +44,11 @@ class Command(BaseCommand):
                 )
                 result = client.subscribe(",".join(remaining))
             self.stdout.write(self.style.SUCCESS(str(result)))
+            self.stdout.write(
+                "\nBu çağrı aboneliğin HESAP katmanıdır (POST /{ig-user-id}/subscribed_apps).\n"
+                "Teslimat için diğer iki koşul panelden sağlanmalı:\n"
+                "  1. App Dashboard -> API setup with Unified login -> Webhooks: alan (mentions) işaretli\n"
+                "  2. Uygulama Live (published) olmalı — Development modda app user'lara bildirim gitmez"
+            )
         except InstagramError as exc:
             raise SystemExit(f"Instagram rejected the call: {exc}")
