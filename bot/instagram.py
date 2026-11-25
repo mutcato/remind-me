@@ -21,6 +21,15 @@ RETRYABLE_CODES = {1, 2, 4, 17, 32, 341, 613}
 MENTIONED_COMMENT_FIELDS = "id,text,timestamp,media{id,permalink}"
 
 
+def redact(text: str, *secrets: str) -> str:
+    """Never let an access token reach a log line or an exception message."""
+    cleaned = str(text)
+    for secret in secrets:
+        if secret and len(secret) > 8:
+            cleaned = cleaned.replace(secret, f"{secret[:4]}...REDACTED")
+    return cleaned
+
+
 class InstagramError(Exception):
     def __init__(self, message, *, status=None, code=None, subcode=None, retryable=False):
         super().__init__(message)
@@ -67,7 +76,10 @@ class InstagramClient:
                 method, url, params=query or None, data=payload if method == "POST" else None, timeout=self.timeout
             )
         except requests.RequestException as exc:  # DNS, TLS, timeout — always worth a retry
-            raise InstagramError(f"request failed: {exc}", retryable=True) from exc
+            # The exception text embeds the request URL, token and all.
+            raise InstagramError(
+                f"request failed: {redact(exc, self.access_token)}", retryable=True
+            ) from None
 
         try:
             body = response.json()
@@ -77,7 +89,7 @@ class InstagramClient:
             error = body.get("error") or {}
             code = error.get("code")
             raise InstagramError(
-                error.get("message") or f"HTTP {response.status_code}",
+                redact(error.get("message") or f"HTTP {response.status_code}", self.access_token),
                 status=response.status_code,
                 code=code,
                 subcode=error.get("error_subcode"),
@@ -103,7 +115,16 @@ class InstagramClient:
         return comment
 
     def fetch_account(self) -> dict:
-        """id + username of the account the token belongs to. Cheapest token check."""
+        """Who the token belongs to. Cheapest possible token check.
+
+        `account_type` is not offered by every setup, so a rejected field falls
+        back to the two fields every setup has rather than failing the check.
+        """
+        try:
+            return self._call("GET", self.ig_user_id, params={"fields": "id,username,account_type"})
+        except InstagramError as exc:
+            if exc.code != 100:  # 100 = unknown/invalid field
+                raise
         return self._call("GET", self.ig_user_id, params={"fields": "id,username"})
 
     def list_subscriptions(self) -> dict:

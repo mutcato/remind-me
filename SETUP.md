@@ -3,38 +3,50 @@
 Botun kodu hazır ve testli; eksik olan tek şey Meta tarafı. Aşağıdaki adımlardan
 **senin tıklamaların** olanlar 🧑 ile, **benim yapacaklarım** 🤖 ile işaretli.
 
-Hangi yol: **Instagram API with Facebook Login**. Sebebi: bizim akış birebir bu
-yola uyuyor — başkalarının postundaki etiketler için ayrı bir `mentions` webhook
-alanı ve yanıt için `POST /{ig-user-id}/mentions`. Gereği: Instagram hesabının bir
-Facebook sayfasına bağlı olması. (Instagram Login yolu da çalışır — `mentions`
-orada `comments` bildiriminin içinde gelir, gönderici de iki endpoint'i deneyecek
-şekilde yazıldı — ama o yolda `GRAPH_BASE_URL=https://graph.instagram.com` olmalı.)
+Hangi yol: **Instagram API with Unified Login** (Meta'nın önerdiği). Üç yol var,
+farkları kurulum yükünde:
+
+| Kurulum | Facebook sayfası | `mentions` webhook'u | İzin |
+|---|---|---|---|
+| **Unified Login** ← seçtiğimiz | gerekmez | ayrı alan | `instagram_manage_comments` |
+| Instagram Login | gerekmez | `comments` bildirimine gömülü | `instagram_business_basic` + `instagram_business_manage_comments` |
+| Facebook Login | **gerekir** | ayrı alan | `instagram_basic`, `instagram_manage_comments`, `pages_read_engagement`, `pages_show_list` |
+
+Kod üçünde de çalışır: gönderici iki yanıt endpoint'ini de deniyor, API host'u
+`GRAPH_BASE_URL` ile değişiyor (`graph.facebook.com` ↔ `graph.instagram.com`).
+Doğru host'u tahmin etmeye çalışma — `manage.py check_setup` token'la bir çağrı
+yapıp söylüyor; yanlışsa tek satır `.env` değişikliği.
 
 Meta arayüzü sık değişiyor; aşağıdaki menü yolları değişmiş olabilir, parantez
 içinde **ne aradığını** yazdım.
 
 ---
 
-## Adım 1 🧑 — `@remindme.in` professional hesap + Facebook sayfası
+## Adım 1 🧑 — `@remindme.in` professional hesaba geçsin
 
 1. Instagram uygulaması → profil → ☰ → **Settings and privacy** → **Account type
-   and tools** → **Switch to professional account** → kategori seç → **Business**.
-2. Hesabı bir Facebook sayfasına bağla (aradığın şey: Instagram hesabının bir
-   Page'e bağlı olması). En güvenilir yol Facebook tarafından: ilgili **Page →
-   Settings → Linked accounts → Instagram → Connect account**.
-   Sayfan yoksa boş bir sayfa aç, içerik gerekmiyor.
+   and tools** → **Switch to professional account** → kategori seç → **Business**
+   (Creator da olur, API açısından fark yok). Geri dönüşü var.
+2. Facebook sayfası **gerekmiyor** — yalnızca Facebook Login kurulumunu seçersen
+   gerekir. Unified Login'de hesap doğrudan uygulamaya bağlanıyor.
+
+Professional hesap gizli (private) olamaz; bot için zaten istenen bu.
 
 `nudgewire0` için bir şey yapmana gerek yok — yorumu yazacak hesabın professional
 olması gerekmiyor.
 
 ## Adım 2 🧑 — Meta uygulaması
 
-1. [developers.facebook.com/apps](https://developers.facebook.com/apps) → **Create App**.
-2. Use case listesinde Instagram ile ilgili olanı seç (aradığın şey: uygulamaya
-   **Instagram** ürününün eklenebilmesi); app type sorarsa **Business**.
-3. Uygulama panelinde **Products → Instagram → Set up**.
-4. **App settings → Basic → App secret → Show**. Bu değer bana gelecek
-   (`IG_APP_SECRET`) — webhook imzasını bununla doğruluyoruz.
+1. [developers.facebook.com/apps](https://developers.facebook.com/apps) → **Create App**
+   → use case olarak **Other** → app type **Business**.
+2. Instagram use case'i: yeni panelde ayrı bir "ürün" menüsü yok, her şey
+   **Use cases** altında. Dashboard'daki *Customize the **Manage messaging &
+   content on Instagram** use case* satırına tıkla — izinler, Instagram hesabı
+   bağlama/token üretme ve webhook ayarları hep bu sayfanın içinde.
+3. **Facebook Login for Business'a dokunma.** Bu botun tarayıcıdan giriş yapan
+   kullanıcısı yok; OAuth redirect URI, Quickstart platformu, deauthorize URL —
+   hiçbiri gerekmiyor. (Yanlışlıkla eklendiyse yapılandırmadan bırakmak yeterli.)
+4. **App settings → Basic → App secret → Show** → `IG_APP_SECRET`.
 
 ## Adım 3 🧑🤖 — Public HTTPS adresi: `remindme.nudgewire.com`
 
@@ -48,7 +60,8 @@ DNS ve `sudo` gerektiren adımlar sende; dosyalar (`deploy/nginx-remindme.conf`,
 
 ## Adım 4 🧑 — Webhook yapılandırması
 
-Uygulama panelinde **Instagram → Webhooks** (veya Products → Webhooks → Instagram):
+**Use cases → Manage messaging & content on Instagram → Customize** →
+Webhooks bölümünde **Configure**:
 
 | Alan | Değer |
 |---|---|
@@ -62,23 +75,26 @@ Sonra alan aboneliği: **`comments`** ve **`mentions`** → Subscribe.
 
 ## Adım 5 🧑 — Access token ve IG user id
 
-[Graph API Explorer](https://developers.facebook.com/tools/explorer) → uygulamanı seç:
+Graph API Explorer'a gerek yok, token doğrudan panelden alınıyor:
 
-1. İzinleri ekle: `instagram_basic`, `instagram_manage_comments`,
-   `pages_show_list`, `pages_read_engagement` → **Generate Access Token**.
-2. `GET /me/accounts` → sayfanın `id`'si.
-3. `GET /{page-id}?fields=instagram_business_account` → dönen `id`, bizim
-   **`IG_USER_ID`**'miz (`17841...` ile başlar).
-4. Kısa ömürlü token'ı 60 günlüğe çevir:
-   `GET /oauth/access_token?grant_type=fb_exchange_token&client_id={app-id}&client_secret={app-secret}&fb_exchange_token={kısa-token}`
+1. **Use cases → Manage messaging & content on Instagram → Customize** →
+   *Instagram business login* / API setup bölümü.
+2. **Add an Instagram account** → `@remindme.in` ile giriş yap ve izin ver.
+   (Hesap public olmalı; professional hesaplar zaten public.)
+3. Aynı panel iki değeri gösterir:
+   - **Instagram user ID** (`17841...`) → `IG_USER_ID`
+   - **Generate access token** → `IG_ACCESS_TOKEN`
 
-Bana üç şey ver: **app secret**, **IG user id**, **uzun ömürlü token**.
-`.env`'e yazar, doğrularım:
+Bu kurulumda API host'u büyük olasılıkla `graph.instagram.com`:
 
-```bash
-.venv/bin/python manage.py check_setup          # token + hesap + abonelikler
-.venv/bin/python manage.py subscribe_webhook --fields comments,mentions
 ```
+GRAPH_BASE_URL=https://graph.instagram.com
+```
+
+Emin olmaya çalışma — `manage.py check_setup` token'la bir çağrı yapıp söylüyor,
+yanlışsa tek satırlık `.env` değişikliği.
+
+Bu adım sunucudan bağımsız: Pi hazır olmadan da token alınıp doğrulanabilir.
 
 ## Adım 6 🧑🤖 — İlk test: kendi postumuz
 
@@ -91,6 +107,33 @@ geldiği için kişi başı limit bile çalışır.
 1. `@remindme.in` hesabından herhangi bir gönderi paylaş.
 2. `nudgewire0` ile o postun altına: `@remindme.in 1 hour`
 3. Ben izlerim: InboxEvent → Reminder → onay yanıtı → 1 saat sonra hatırlatma.
+
+## Erişim seviyesi: Standard mı Advanced mı (maliyeti belirleyen soru)
+
+Meta'nın iki erişim seviyesi var ve aradaki fark bu projede kritik:
+
+| Seviye | Ne zaman gerekir | Bedeli |
+|---|---|---|
+| **Standard** | Uygulamayı yetkilendiren hesap senin (uygulamada rolü olan hesaplar) | App Review yok, işletme doğrulaması yok |
+| **Advanced** | Uygulama, sahibi/yöneticisi olmadığın Instagram professional hesaplarına hizmet ediyorsa | App Review **ve** Business Verification (işletme belgeleri) |
+
+Bizim durumumuz sınırda ve **ampirik olarak test edilmeli**: uygulamaya izin veren
+tek hesap `@remindme.in` — o da senin ve uygulamada rolü olacak. Botu etiketleyen
+yabancılar "app user" değil, hiçbir şey yetkilendirmiyorlar. Bu okumaya göre
+**Standard yeterli olabilir**. Kesin cevabı şu test verir:
+
+1. Uygulamayı Live'a al (Standard Access ile).
+2. Uygulamada **hiçbir rolü olmayan** bir hesaptan (ör. `nudgewire0`) başka
+   birinin postunda botu etiketle.
+3. Webhook geldiyse → Standard yeterli, App Review'a gerek yok.
+   Gelmediyse → Advanced gerekiyor, App Review + Business Verification şart.
+
+Advanced gerekirse: uygulamanın doğrulanmış bir **business portfolio**'ya bağlı
+olması gerekiyor; doğrulama şirket belgesi (vergi kaydı vb.) istiyor — Türkiye'de
+şahıs şirketi genelde yetiyor, hiç kaydı olmayan bir birey için zor.
+İşe yarar bir ayrıntı: arayüzü olmayan (headless) uygulamalar için Meta
+"private app" istisnası tanıyor ve bu istisnada yalnızca `instagram_basic` ile
+`instagram_manage_comments` onayı istenebiliyor — bizim ihtiyacımız tam olarak bu.
 
 ## Adım 7 🧑 — Başkasının postunda test (asıl senaryo)
 

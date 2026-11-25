@@ -1,10 +1,11 @@
 from datetime import timedelta
+from unittest.mock import patch
 
 from django.test import TestCase, override_settings
 from django.utils import timezone
 
 from bot import pipeline
-from bot.instagram import InstagramError
+from bot.instagram import InstagramClient, InstagramError
 from bot.models import InboxEvent, OutboxReply, Reminder, Source
 
 from .helpers import FakeClient, conf
@@ -284,3 +285,149 @@ class EdgeFallbackTests(TestCase):
         pipeline.process_inbox(FakeClient())
         counters = pipeline.send_outbox(FakeClient(error=InstagramError("gone", code=100)), sleep=NEVER_SLEEP)
         self.assertEqual(counters["failed"], 1)
+
+
+class AccountLookupTests(TestCase):
+    """`account_type` is not available in every Meta setup; asking for it must
+    never be what breaks the setup check."""
+
+    class Client(InstagramClient):
+        def __init__(self, reject_field: bool):
+            super().__init__(ig_user_id="1", access_token="t")
+            self.reject_field = reject_field
+            self.calls: list = []
+
+        def _call(self, method, path, *, params=None, data=None):
+            self.calls.append(params["fields"])
+            if self.reject_field and "account_type" in params["fields"]:
+                raise InstagramError("unknown field", code=100)
+            return {"id": "1", "username": "remindme.in"}
+
+    def test_account_type_requested_first(self):
+        client = self.Client(reject_field=False)
+        client.fetch_account()
+        self.assertEqual(client.calls, ["id,username,account_type"])
+
+    def test_falls_back_when_the_field_is_rejected(self):
+        client = self.Client(reject_field=True)
+        self.assertEqual(client.fetch_account()["username"], "remindme.in")
+        self.assertEqual(client.calls, ["id,username,account_type", "id,username"])
+
+    def test_other_errors_still_propagate(self):
+        class Dead(self.Client):
+            def _call(self, method, path, *, params=None, data=None):
+                raise InstagramError("token expired", code=190)
+
+        with self.assertRaises(InstagramError):
+            Dead(reject_field=False).fetch_account()
+
+
+class SubscribeCommandTests(TestCase):
+    """`mentions` does not exist in every setup; the command must still subscribe
+    to what does."""
+
+    def run_command(self, reject_mentions: bool):
+        from io import StringIO
+
+        from django.core.management import call_command
+
+        asked: list = []
+
+        class Client(InstagramClient):
+            def __init__(self):
+                super().__init__(ig_user_id="1", access_token="t")
+
+            def list_subscriptions(self):
+                return {"data": []}
+
+            def subscribe(self, fields="comments,mentions"):
+                asked.append(fields)
+                if reject_mentions and "mentions" in fields:
+                    raise InstagramError("(#100) Invalid field", code=100)
+                return {"success": True}
+
+        out = StringIO()
+        with patch("bot.management.commands.subscribe_webhook.InstagramClient", Client):
+            call_command("subscribe_webhook", stdout=out)
+        return asked, out.getvalue()
+
+    def test_subscribes_to_both_when_supported(self):
+        asked, output = self.run_command(reject_mentions=False)
+        self.assertEqual(asked, ["comments,mentions"])
+        self.assertIn("success", output)
+
+    def test_falls_back_to_comments_when_mentions_is_unknown(self):
+        asked, output = self.run_command(reject_mentions=True)
+        self.assertEqual(asked, ["comments,mentions", "comments"])
+        self.assertIn("comments' bildiriminin içinde", output)
+
+
+class CheckSetupTests(TestCase):
+    """An unedited .env.example value must read as missing, not as configured."""
+
+    def run_check(self, **overrides):
+        from io import StringIO
+
+        from django.core.management import call_command
+
+        out = StringIO()
+        with override_settings(REMINDME=conf(**overrides), SECRET_KEY="a-real-key", DEBUG=False):
+            try:
+                call_command("check_setup", stdout=out)
+            except SystemExit:
+                pass
+        return out.getvalue()
+
+    def test_placeholder_ig_user_id_is_not_accepted(self):
+        output = self.run_check(IG_USER_ID="17841400000000000", APP_SECRET="s", VERIFY_TOKEN="v", ACCESS_TOKEN="t")
+        self.assertIn("eksik", output.split("IG_USER_ID")[0].splitlines()[-1])
+
+    def test_real_values_pass_the_first_section(self):
+        output = self.run_check(IG_USER_ID="17841499999999999", APP_SECRET="s", VERIFY_TOKEN="v", ACCESS_TOKEN="t")
+        self.assertNotIn(".env tamamlanmadan", output)
+
+
+class SecretRedactionTests(TestCase):
+    """An access token must never survive into an exception message or a log."""
+
+    def test_network_error_does_not_leak_the_token(self):
+        import requests
+
+        from bot.instagram import redact
+
+        token = "EAAgPI8M6ZBZC0BTBSy5ZCz5DLbuOoEsFvTZCLzclM0uPyS36QEvoAZCJtPKHX"
+        client = InstagramClient(ig_user_id="1", access_token=token)
+
+        class Boom:
+            def request(self, *a, **kw):
+                raise requests.ConnectionError(
+                    f"Max retries exceeded with url: /v27.0/1?access_token={token} (Network is unreachable)"
+                )
+
+        client.session = Boom()
+        with self.assertRaises(InstagramError) as caught:
+            client.fetch_account()
+        message = str(caught.exception)
+        self.assertNotIn(token, message)
+        self.assertIn("REDACTED", message)
+        self.assertTrue(caught.exception.retryable)
+        self.assertEqual(redact("plain text", token), "plain text")
+
+    def test_api_error_message_is_redacted_too(self):
+        token = "EAAgPI8M6ZBZC0BTBSy5ZCz5DLbuOoEsFvTZCLzclM0uPyS36QEvoAZCJtPKHX"
+        client = InstagramClient(ig_user_id="1", access_token=token)
+
+        class Response:
+            status_code = 400
+
+            def json(self):
+                return {"error": {"message": f"Invalid token {token}", "code": 190}}
+
+        class Session:
+            def request(self, *a, **kw):
+                return Response()
+
+        client.session = Session()
+        with self.assertRaises(InstagramError) as caught:
+            client.fetch_account()
+        self.assertNotIn(token, str(caught.exception))
