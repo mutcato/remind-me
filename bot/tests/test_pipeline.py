@@ -453,3 +453,56 @@ class SelftestSuppressionTests(TestCase):
         client = FakeClient()
         pipeline.send_outbox(client, sleep=NEVER_SLEEP)
         self.assertEqual(len(client.sent), 1)
+
+
+@override_settings(REMINDME=SETTINGS)
+class ReplyLoopTests(TestCase):
+    """The bot replied to its own reply seven times in a row, because the
+    confirmation contained "@remindme.in same" and the mentions webhook carries
+    no author to recognise ourselves by."""
+
+    def test_confirmation_does_not_mention_the_bot(self):
+        comment_event("@remindme.in 1 hour")
+        pipeline.process_inbox(FakeClient())
+        confirm = OutboxReply.objects.get(kind=OutboxReply.Kind.CONFIRM)
+        self.assertNotIn("@remindme.in", confirm.message)
+
+    @override_settings(REMINDME=conf(IG_USER_ID="bot-ig-id", SAME_HINT=True))
+    def test_hint_is_available_but_opt_in(self):
+        comment_event("@remindme.in 1 hour")
+        pipeline.process_inbox(FakeClient())
+        self.assertIn("@remindme.in", OutboxReply.objects.get(kind=OutboxReply.Kind.CONFIRM).message)
+
+    def test_our_own_reply_coming_back_as_a_mention_is_ignored(self):
+        # Post a reply, remember its id, then let Instagram hand it back to us.
+        comment_event("@remindme.in 1 hour", comment_id="user-comment")
+        pipeline.process_inbox(FakeClient())
+        client = FakeClient()
+        pipeline.send_outbox(client, sleep=NEVER_SLEEP)
+        our_reply_id = OutboxReply.objects.get().reply_comment_id
+        self.assertTrue(our_reply_id)
+
+        mention_event(comment_id=our_reply_id, media_id="m1")
+        pipeline.process_inbox(mention_client("⏰ Tamam, 26 Kasım Perşembe 22:40'ta hatırlatırım."))
+        self.assertEqual(Reminder.objects.count(), 1)  # no second reminder
+
+    def test_text_starting_with_our_marker_is_ignored(self):
+        mention_event(comment_id="unknown-id")
+        client = mention_client("⏰ Got it — I'll remind you on Thu 26 Nov, 22:40. @remindme.in same")
+        pipeline.process_inbox(client)
+        self.assertFalse(Reminder.objects.filter(status=Reminder.Status.PENDING).exists())
+
+    @override_settings(REMINDME=conf(IG_USER_ID="bot-ig-id", MAX_REPLIES_PER_MEDIA_PER_HOUR=2))
+    def test_one_post_cannot_be_flooded(self):
+        for index in range(4):
+            comment_event(f"@remindme.in {index + 1} hours", comment_id=f"c{index}", media_id="same-post")
+        pipeline.process_inbox(FakeClient())
+        self.assertEqual(Reminder.objects.count(), 4)
+
+        client = FakeClient()
+        counters = pipeline.send_outbox(client, sleep=NEVER_SLEEP)
+        self.assertEqual(counters["sent"], 2)
+        self.assertEqual(counters["throttled"], 2)
+        deferred = OutboxReply.objects.filter(status=OutboxReply.Status.PENDING)
+        self.assertEqual(deferred.count(), 2)
+        self.assertIn("per-media cap", deferred.first().last_error)

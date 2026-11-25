@@ -20,13 +20,21 @@ _LOCATIVE_TENS = {0: "da", 1: "da", 2: "de", 3: "da", 4: "ta", 5: "de"}
 TR_UNITS = (("yıl", 31536000), ("ay", 2592000), ("hafta", 604800), ("gün", 86400), ("saat", 3600), ("dakika", 60))
 EN_UNITS = (("year", 31536000), ("month", 2592000), ("week", 604800), ("day", 86400), ("hour", 3600), ("minute", 60))
 
+# The "join me" hint has to name the bot, which makes our own reply mention us
+# and hands Instagram a fresh mentions event for our own comment. That is a
+# reply loop, so the hint is off unless SAME_HINT is switched on deliberately.
+CONFIRM_WITH_HINT = {
+    "tr": ("⏰ Tamam, {when}{loc} hatırlatırım.{note}\nSen de hatırlatılmak istersen \"{handle} aynı\" yaz.",),
+    "en": ("⏰ Got it — I'll remind you on {when}.{note}\nWant the same nudge? Comment \"{handle} same\".",),
+}
+
 CONFIRM = {
     "tr": (
-        "⏰ Tamam, {when}{loc} hatırlatırım.{note}\nSen de hatırlatılmak istersen \"{handle} aynı\" yaz.",
+        "⏰ Tamam, {when}{loc} hatırlatırım.{note}",
         "⏰ Not aldım: {when}{loc} buraya tekrar yazacağım.{note}",
     ),
     "en": (
-        "⏰ Got it — I'll remind you on {when}.{note}\nWant the same nudge? Comment \"{handle} same\".",
+        "⏰ Got it — I'll remind you on {when}.{note}",
         "⏰ Noted. I'll come back to this comment on {when}.{note}",
     ),
 }
@@ -97,10 +105,13 @@ def _clip(text: str) -> str:
     return text if len(text) <= MAX_COMMENT_CHARS else text[: MAX_COMMENT_CHARS - 1] + "…"
 
 
-def confirm_text(*, due_at: datetime, locale: str, tz: str, handle: str, note: str, key: str) -> str:
+def confirm_text(
+    *, due_at: datetime, locale: str, tz: str, handle: str, note: str, key: str, same_hint: bool = False
+) -> str:
     locale = locale if locale in CONFIRM else "tr"
     when, loc = format_when(due_at, tz, locale)
-    template = _variant(CONFIRM[locale], key)
+    table = CONFIRM_WITH_HINT if same_hint else CONFIRM
+    template = _variant(table[locale], key)
     return _clip(template.format(when=when, loc=loc, handle=handle, note=_note_part(note, locale)))
 
 

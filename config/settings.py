@@ -205,6 +205,10 @@ REMINDME = {
     "CONFIRM_REPLY": env_bool("CONFIRM_REPLY", True),
     "REPLY_ON_UNPARSED": env_bool("REPLY_ON_UNPARSED", False),
     # Single rate-limited sender
+    # One post must never receive a flood, whatever the bug.
+    "MAX_REPLIES_PER_MEDIA_PER_HOUR": env_int("MAX_REPLIES_PER_MEDIA_PER_HOUR", 4),
+    # The "@handle same" hint makes our own reply mention us -> reply loop.
+    "SAME_HINT": env_bool("SAME_HINT", False),
     "SEND_INTERVAL_SECONDS": env_float("SEND_INTERVAL_SECONDS", 2.0),
     "SEND_MAX_PER_HOUR": env_int("SEND_MAX_PER_HOUR", 100),
     "SEND_BATCH_SIZE": env_int("SEND_BATCH_SIZE", 20),

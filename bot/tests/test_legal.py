@@ -6,7 +6,7 @@ from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
 
-from bot.models import InboxEvent, OutboxReply, Reminder, Source
+from bot.models import InboxEvent, OutboxReply, Reminder, Source  # noqa: F401
 
 
 class LegalPageTests(TestCase):
@@ -82,3 +82,36 @@ class PurgeTests(TestCase):
         )
         self.purge(apply=True)
         self.assertEqual(list(InboxEvent.objects.values_list("comment_id", flat=True)), ["waiting"])
+
+
+class ShowEventsTests(TestCase):
+    """Forensics on what Meta sent: the raw payload must be reachable."""
+
+    def setUp(self):
+        self.event = InboxEvent.objects.create(
+            source=Source.MENTIONS, comment_id="18387093088237627", media_id="m1",
+            payload={"media_id": "m1", "comment_id": "18387093088237627"},
+            status=InboxEvent.Status.FAILED, attempts=1,
+            last_error="(#100) Param comment_id is not a valid instagram comment ID",
+        )
+
+    def run_cmd(self, **kwargs):
+        out = StringIO()
+        call_command("show_events", stdout=out, **kwargs)
+        return out.getvalue()
+
+    def test_failed_event_shows_its_error(self):
+        output = self.run_cmd(failed=True)
+        self.assertIn("18387093088237627", output)
+        self.assertIn("not a valid instagram comment ID", output)
+        self.assertIn("hatırlatma: yok", output)
+
+    def test_payload_is_printed_on_demand(self):
+        self.assertNotIn("media_id", self.run_cmd())
+        self.assertIn('"media_id": "m1"', self.run_cmd(payload=True))
+
+    def test_filtering_by_comment_id(self):
+        InboxEvent.objects.create(source=Source.MENTIONS, comment_id="other", payload={})
+        output = self.run_cmd(comment_id="other")
+        self.assertIn("other", output)
+        self.assertNotIn("18387093088237627", output)

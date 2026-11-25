@@ -104,12 +104,27 @@ def _comment_from_event(event: InboxEvent, client: InstagramClient) -> Comment:
     )
 
 
-def _is_self(event: InboxEvent) -> bool:
-    """Never react to our own comments — that is how reply loops start."""
+# Our replies open with these. A mentions payload carries no author, so the
+# text is the last line of defence when the id check cannot help.
+SELF_MARKERS = ("⏰", "🔔")
+
+
+def _is_self(event: InboxEvent, text: str = "") -> bool:
+    """Never react to our own comments — that is how reply loops start.
+
+    Three checks, because no single one covers every payload shape:
+    the `comments` webhook names the author; the `mentions` webhook does not,
+    so we match the comment id against the replies we posted, and finally
+    against the shape of our own templates.
+    """
     sender = (event.payload or {}).get("from") or {}
     sender_id = str(sender.get("id") or "")
     own_id = str(settings.REMINDME["IG_USER_ID"] or "")
-    return bool(sender_id) and bool(own_id) and sender_id == own_id
+    if sender_id and own_id and sender_id == own_id:
+        return True
+    if OutboxReply.objects.filter(reply_comment_id=event.comment_id).exists():
+        return True
+    return text.strip().startswith(SELF_MARKERS)
 
 
 def process_inbox(client: InstagramClient | None = None, limit: int | None = None) -> dict:
@@ -154,6 +169,9 @@ def _process_event(event: InboxEvent, client: InstagramClient) -> str:
     comment = _comment_from_event(event, client)
     if not comment.text.strip():
         return "ignored:empty"
+    if _is_self(event, comment.text):  # the text only arrives after the fetch
+        log.warning("own reply came back as an event (%s), ignored", event.comment_id)
+        return "ignored:self"
     # Cheap filters first, before any parsing or paid call (HANDOFF.md §3).
     if len(comment.text) > settings.REMINDME["MAX_COMMENT_CHARS"]:
         return "ignored:too_long"
@@ -269,6 +287,7 @@ def handle_reminder(comment: Comment) -> str:
                 handle=conf["BOT_HANDLE"],
                 note=result.note,
                 key=comment.comment_id,
+                same_hint=conf["SAME_HINT"],
             ),
         )
     return "scheduled"
@@ -337,7 +356,19 @@ def send_outbox(client: InstagramClient | None = None, now: datetime | None = No
             status=OutboxReply.Status.PENDING, send_after__lte=now, next_attempt_at__lte=now
         ).order_by("send_after", "id")[:budget]
     )
+    per_media_cap = conf["MAX_REPLIES_PER_MEDIA_PER_HOUR"]
     for index, row in enumerate(rows):
+        # However the bug arrives, the bot must not flood one post.
+        recent_here = OutboxReply.objects.filter(
+            media_id=row.media_id, status=OutboxReply.Status.SENT, sent_at__gte=now - timedelta(hours=1)
+        ).count()
+        if recent_here >= per_media_cap:
+            row.send_after = now + timedelta(hours=1)
+            row.last_error = f"per-media cap: {recent_here} replies on {row.media_id} in the last hour"
+            row.save(update_fields=["send_after", "last_error"])
+            counters["throttled"] += 1
+            log.warning("media %s hit the per-media cap (%s/h), reply deferred", row.media_id, per_media_cap)
+            continue
         if index:
             sleep(conf["SEND_INTERVAL_SECONDS"])  # one sender, paced, as agreed
         if row.target_comment_id.startswith(SELFTEST_PREFIX):

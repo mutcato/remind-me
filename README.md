@@ -167,15 +167,47 @@ Aynı denemede doğrulanan ikinci şey: bildirimde handle **`@remindme.in` tam
 haliyle, nokta dahil** mavi link olarak göründü. Yani kullanıcı adındaki nokta
 mention'ı bölmüyor — bir ara şüphelendiğimiz bu risk kapandı, ad değişmeyecek.
 
-**Henüz bilinmeyen iki şey, ikisi de ürünün şeklini belirliyor:**
+**Belgelerin söylediği (iki bağımsız turda doğrulandı):**
 
-1. **Tek yönlü mü, karşılıklı mı?** Testte hesap takip etti *ve* geri takip
-   edildi. Tek yönlü takip yetiyorsa akış "önce takip et, sonra etiketle" olur —
-   bu normal ve büyümeye yarar. Karşılıklı şartsa bot her kullanıcıyı geri takip
-   etmek zorunda kalır; bu hem ölçeklenmez hem spam örüntüsüdür.
-2. **Webhook aynı kurala tabi mi?** `mentions` webhook'u yorum oluşturulurken
-   sunucu tarafında tetikleniyor; Activity bildiriminden bağımsız olabilir.
-   Abonelik açıldığında takipçi/takipçi-olmayan iki hesapla ölçülecek.
+- `mentions` webhook'unun belgelenmiş kısıtlamalarının tamamı: story'ler
+  desteklenmiyor; etiketlendiğin fotoğrafa yorum yazılamıyor; **medyanın sahibi
+  public olmalı**; uygulama **Live** olmalı; Advanced Access `comments` ve
+  `live_comments` için gerekli — **`mentions` bu listede yok**.
+  "follow/follower" kelimesi hiçbir yerde geçmiyor, 2024-2026 changelog'unda da
+  böyle bir koşul eklenmemiş.
+- Instagram'ın bildirim tetikleyici listesi koşulsuz: *"Mentions you in a comment."*
+- Mention'a en yakın belgelenmiş takip kapısı alıcının kendi ayarı ve yönü
+  **dışarı doğru**: *"Allow mentions from people you follow"* = yalnızca **senin
+  takip ettiğin** hesaplar seni etiketleyebilir. Yani bu ayar sebep olsaydı
+  belirleyici kenar "@remindme.in karşı tarafı takip ediyor mu" olurdu —
+  karşılıklılık değil. Ayar zaten "Everyone".
+- Yorum bildirimleri Instagram'ın ML sıralama sistemine **dahil değil**
+  (*"Those notifications are not powered by the AI we describe in this system
+  card"*). Yani "algoritma elemiştir" açıklaması geçersiz; gözlem gerçek sinyal.
+
+**Hâlâ bilinmeyen, yalnızca deneyle çözülecek:**
+
+1. **Takipçi olmayan birinin mention'ı webhook'u tetikliyor mu?** Kamuya açık
+   kayıtlarda tek bir gözlem bile yok; abonelik hiç açılmadı. Ürünün
+   yaşayabilirliğini bu soru belirliyor.
+2. **O yorumlar gerçekten görünür müydü?** Spam filtresi sessizce gizlediyse
+   takip teorisi tamamen çöker. En ucuz kontrol, henüz yapılmadı: üçüncü bir
+   hesapla posta bakmak.
+3. Bildirimi hangi kenar getirdi? Testte iki kenar aynı anda oluştu
+   (mcan543 takip etti **ve** geri takip edildi). Karşılıklılık hipotezinin
+   hiçbir kaynakta desteği yok.
+
+**Sektör sinyali:** Resmî API ile, rastgele üçüncü taraf gönderilerinde
+etiketlenerek çağrılan, ölçekte çalışan bir Instagram botu örneği bulunamadı.
+Bulunan tek örnek çerez/özel API ile sürülen bir hobi projesi. Meta'nın kendi
+asistanı bile IG yorumlarında etiketlenerek çağrılamıyor; Threads'te amaca özel
+bir `mentions` webhook'u var, Instagram'da yok. (Arama bütçesi tükendiği için
+"hiç örnek yok" kesinleşmedi — doğrulanmamış bir sinyal.)
+
+**Yedek kanal yok:** Birine DM atabilmek için o kişinin **senin** gönderine
+yorum yapmış olması ve 7 gün içinde yanıtlanması gerekiyor. Üçüncü taraf
+gönderisinde seni etiketleyen yabancıyla hiçbir mesajlaşma penceresi yok —
+tek yanıt kanalı public `POST /{ig-user-id}/mentions`.
 
 ## Sessizliğin kaynağını ayırmak
 
