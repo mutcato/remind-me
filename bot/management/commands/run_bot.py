@@ -32,6 +32,11 @@ class Command(BaseCommand):
         signal.signal(signal.SIGTERM, stop)
 
         client = InstagramClient()
+        # An idle worker logs nothing, which reads as a dead worker. Say hello.
+        log.info(
+            "worker started: interval=%ss handle=%s endpoint=%s dry_run=%s",
+            options["interval"], settings.REMINDME["BOT_HANDLE"], client.root, client.dry_run,
+        )
         if client.dry_run:
             self.stdout.write(self.style.WARNING("DRY_RUN is on: nothing will be posted to Instagram."))
 

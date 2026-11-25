@@ -5,6 +5,8 @@ After=network-online.target
 [Service]
 User=pimutlu
 WorkingDirectory=/home/pimutlu/apps/remind-me
+# Without this, journalctl shows log lines in delayed chunks.
+Environment=PYTHONUNBUFFERED=1
 EnvironmentFile=/home/pimutlu/apps/remind-me/.env
 ExecStart=/home/pimutlu/apps/remind-me/.venv/bin/python manage.py run_bot
 Restart=always
